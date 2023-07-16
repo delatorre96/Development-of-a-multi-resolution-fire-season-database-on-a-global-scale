@@ -2,12 +2,11 @@ library("transformeR")
 
 #####SERIES TEMPORALES########
 func.coordenadasConDatos <- function(grid){
-    #Creamos un vector que nos deje sólo los píxeles que sí que tienen área quemada, en otras palabras que no sean vectores de ceros:
     coordX <- c()
     coordY <- c()
-    for (x in grid$xyCoords$x){ #Indexamos con la coordenada x
-        for (y in grid$xyCoords$y){ #Indexamos con la coordenada y
-            subGrid = subsetGrid(grid = grid,  lonLim  = x, latLim  = y) #Extraemos el grid correspondiente a un pixel específico 
+    for (x in grid$xyCoords$x){ 
+        for (y in grid$xyCoords$y){ 
+            subGrid = subsetGrid(grid = grid,  lonLim  = x, latLim  = y) 
             if (any(0 != subGrid$Data)){
                     coordX <- c(coordX, x)
                     coordY <- c(coordY, y)   
@@ -18,17 +17,13 @@ func.coordenadasConDatos <- function(grid){
 }
 
 func.mediasMensuales <- function(grid, lat, lon, func = mean){
-    #Se le pasa una coordenada x y una coordenada Y y te calcula la serie temporal para dicha 
-        #En el primer loop llamamos a cada pixel de la lista para trabajar con él:
         x = lat 
         y = lon
         results <- c()
         for (season in 1:12){
-            #En el segundo loop sacamos para cada pixel cada uno de los meses y lo guardamos como variable
             new_grid <- subsetGrid(grid = grid,season = season, lonLim  = x, latLim  = y)
-            var_name <- paste("season", season, sep = "_")#le ponemos nombre a la variable àra cada mes del pixel a estudiar
-            assign(var_name,new_grid)#le asignamos el nombre al grid de cada pixel para cada mes 
-            #Y así, elaboramos el estadístico de todos los meses para tener una única serie temporal:
+            var_name <- paste("season", season, sep = "_")
+            assign(var_name,new_grid)
             results <- c(results, func(get(var_name)$Data))
         }
         return(results)
@@ -50,6 +45,18 @@ func.ToDataFrame <- function(grid, coordX, coordY, func = mean){
     rownames(df) <- names(lista)
     colnames(df) <- meses
     return (df)
+}
+
+func.eliminarSeriesConCeros <- function(df){
+    #incluir df de series temporalaes CON LAS COORDENADAS INCLUIDAS EN DOS COLUMNAS X E Y 
+    out_df <- data.frame()
+    for (row in 1:nrow(df)){
+        if (any(0 != df[row,3:14])){
+            out_df <- rbind(out_df, df[row,])
+        }
+    }
+    colnames(out_df) <- colnames(df)
+    return (out_df)
 }
 
 #####FIRE SEASON########
