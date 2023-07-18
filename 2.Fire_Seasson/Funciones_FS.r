@@ -155,7 +155,8 @@ func.caracterizacion_fireSeason <- function(sereTemporalMedias,numberSeassons = 
         C = (sqrt(L_x^2 + L_y^2))/sum(x)
         #seasonal timing 
         P = atan(L_x / L_y)  
-
+        ####Modulo de la seassonal timing
+        #P = (P + 2*pi) %% (2*pi) 
         return(list('C' = C, 'P' = P))
         
     }else{

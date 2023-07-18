@@ -14,13 +14,13 @@ func.superficiePorPixel_coordEsfer <- function(grid){
     return(SuperficiePorPixel)
 }
 
-func.superficiePorPixel_coordCartes <- function(grid){
+func.superficiePorPixel_coordCartes <- function(grid,scale){
     x = grid$xyCoords$x
     y = grid$xyCoords$y
-     R = 6371
+    R = 6371
     lat1 = y*pi/180
-    lat2 = (y + 0.25)*pi/180
-    areaCadaPixel = (pi/180)*R^2 * abs(sin(lat1)-sin(lat2)) * 0.25
+    lat2 = (y + scale)*pi/180
+    areaCadaPixel = (pi/180)*R^2 * abs(sin(lat1)-sin(lat2)) * scale
     mat2d = matrix(areaCadaPixel,nrow = 1)
     array3d <- mat2Dto3Darray(mat2d, getCoordinates(grid)$x,getCoordinates(grid)$y)
     SuperficiePorPixel  <- grid 
