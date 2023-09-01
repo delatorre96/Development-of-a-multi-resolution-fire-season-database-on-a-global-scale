@@ -1,6 +1,7 @@
 source("../2.Fire_Seasson/Funciones_FS.r")
 
-df_para_raster<- function(grid, grid_fba){
+
+df_para_raster <- function(grid, grid_fba){
     ##Hacemos la media de todos los eneros, de todos los febreros,... de todos los meses para cada gridBox:
     df.seriesTemporales <- func.ToDataFrame(grid = grid, coordX = grid$xyCoords$x, coordY = grid$xyCoords$y, func = mean)
     ## incluimos las coordenadas en el data frame de series temporales pero creando otro objeto. Esto lo hago para evitar problemas de programación cuando calcule la fire seasson
@@ -74,4 +75,16 @@ df_para_raster<- function(grid, grid_fba){
     ruta <- '../3.Preprocesado/dataframes raster/df_raster'
     ruta_archivo <- paste0(ruta,nombre_variable)
     save(df, file = ruta_archivo)
+    cat('El data frame para el raster ',deparse(substitute(grid)),' ha sido generado y guardado con éxito!')
+}
+
+
+archivos_ba <- list.files(path = "../1.Upscaling/upscaling_ba", pattern = "\\.Rdata$", full.names = TRUE)
+archivos_fba <- list.files(path = "../1.Upscaling/upscaling_fba", pattern = "\\.Rdata$", full.names = TRUE)
+
+for (i in 1:length(archivos_ba)){
+    grid <- get(load(archivos_ba[i]))
+    grid_fba <- get(load(archivos_fba[i]))
+    df_para_raster(grid, grid_fba)
+    rm(grid, grid_fba)
 }
