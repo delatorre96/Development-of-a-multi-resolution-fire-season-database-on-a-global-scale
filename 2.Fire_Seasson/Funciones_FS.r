@@ -114,6 +114,86 @@ func.fireSeasson <- function(sereTemporalMedias, umbral = 0.8){
         return (NA)
     }
 }
+
+
+reconfigurarFireSeasson <- function(serie){ #Para bimodales de segundo filtro
+    #Esto lo hacemos para dividir la fire seasson en dos
+    #Como previamente ya sabemos que estas series tienen fire seasson y cumplen con el criterio del 80% ahora lo reordenamos para que se divida en dos
+    maximo1 = which(serie == sort(serie, decreasing = TRUE)[1])
+    maximo2 = which(serie == sort(serie, decreasing = TRUE)[2])
+    maximos = unname(sort(c(maximo1, maximo2)))
+    if (identical(maximos,seq(min(maximos), max(maximos)))){
+        maximo3 = which(serie == sort(serie, decreasing = TRUE)[3])
+        maximos = c(maximos, maximo3)
+        maximos = unname(sort(maximos))
+        if (identical(maximos,seq(min(maximos), max(maximos)))){
+            maximo4 = which(serie == sort(serie, decreasing = TRUE)[4])
+            maximos = c(maximos, maximo4)
+            maximos = unname(sort(maximos))
+            if (identical(maximos,seq(min(maximos), max(maximos)))){
+                maximo5 = which(serie == sort(serie, decreasing = TRUE)[5])
+                maximos = c(maximos, maximo5)
+                maximos = unname(sort(maximos))
+                if (identical(maximos,seq(min(maximos), max(maximos)))){
+                    maximo6 = which(serie == sort(serie, decreasing = TRUE)[6])
+                    maximos = c(maximos, maximo6)
+                    maximos = unname(sort(maximos))
+                    if (identical(maximos,seq(min(maximos), max(maximos)))){
+                        maximo7 = which(serie == sort(serie, decreasing = TRUE)[7])
+                        maximos = c(maximos, maximo7)
+                        maximos = unname(sort(maximos))
+                        if (identical(maximos,seq(min(maximos), max(maximos)))){
+                            maximo8 = which(serie == sort(serie, decreasing = TRUE)[8])
+                            maximos = c(maximos, maximo8)
+                            maximos = unname(sort(maximos))
+                             if (identical(maximos,seq(min(maximos), max(maximos)))){
+                                    maximo9 = which(serie == sort(serie, decreasing = TRUE)[9])
+                                    maximos = c(maximos, maximo9)
+                                    maximos = unname(sort(maximos))
+                                    if (identical(maximos,seq(min(maximos), max(maximos)))){
+                                        maximo10 = which(serie == sort(serie, decreasing = TRUE)[10])
+                                        maximos = c(maximos, maximo10)
+                                        maximos = unname(sort(maximos))
+                                        if (identical(maximos,seq(min(maximos), max(maximos)))){
+                                            maximo11 = which(serie == sort(serie, decreasing = TRUE)[11])
+                                            maximos = c(maximos, maximo11)
+                                            maximos = unname(sort(maximos))
+                                            if (identical(maximos,seq(min(maximos), max(maximos)))){
+                                                maximo12 = which(serie == sort(serie, decreasing = TRUE)[12])
+                                                maximos = c(maximos, maximo12)
+                                                maximos = unname(sort(maximos))
+                                                }else{
+                                                    return (sort(maximos))
+                                                }
+                                            }else{
+                                                return (sort(maximos))
+                                        }
+                                        }else{
+                                           return (sort(maximos))
+                                    }
+                                }else{
+                                    return (sort(maximos))
+                                 }
+                            }else{
+                                return (sort(maximos))
+                            }
+                        }else{
+                            return (sort(maximos))
+                        }
+                    }else{
+                       return (sort(maximos))
+                }
+            }else{
+                return (sort(maximos))
+            }
+        }else{
+            return (sort(maximos))
+        }
+    }else{
+        return (sort(maximos))
+    }
+}
+
 ###Fire season Bimodal####
 isBimodal_filtro1 <- function(fireSeasson_serie){
     if (is.na(fireSeasson_serie)){
@@ -222,9 +302,20 @@ func.bimodalidad <- function(df.seriesTemporales_conCoords, df.fireSeasson){
                 bimodales_2 <- c(bimodales_2, isBimodal_filtro2(unlist(df.seriesTemporales_conCoords[i,3:14])))
         }
     df_bimodales = cbind(df_bimodales_1,bimodales_2)
-    #Unimos filtros y lo incluimos en df fire seasson
     df_bimodales$Bimodal <- df_bimodales$bimodales_1 | df_bimodales$bimodales_2
-    df.fireSeasson <- cbind(coord_x, coord_y, df.fireSeasson, df_bimodales$Bimodal)
+    df.fireSeasson <- cbind(coord_x, coord_y, df.fireSeasson, 'Bimodal'=df_bimodales$Bimodal,  'bimodales_1'=df_bimodales$bimodales_1 , 'bimodales_2'= df_bimodales$bimodales_2)
+    #Reconfiguramos fire seassons nuevas
+    for (i in 1:nrow(df.fireSeasson)){
+        if (df.fireSeasson$bimodales_1[i] == FALSE & df.fireSeasson$bimodales_2[i] == TRUE){
+            x = df.fireSeasson$coord_x[i]
+            y = df.fireSeasson$coord_y[i]
+            serie = unlist(df.seriesTemporales_conCoords[df.seriesTemporales_conCoords$coord_x == x &  df.seriesTemporales_conCoords$coord_y == y, ][,3:14])
+            df.fireSeasson$FireSeasson[i] = list(reconfigurarFireSeasson(serie))
+
+        }
+    }
+    df.fireSeasson <- subset(df.fireSeasson, select = -c(bimodales_1, bimodales_2))
+    return (df.fireSeasson)
     }
 
 #####caracterizacion fire season####

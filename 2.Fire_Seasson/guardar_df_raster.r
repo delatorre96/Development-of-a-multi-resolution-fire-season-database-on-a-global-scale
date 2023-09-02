@@ -1,3 +1,4 @@
+
 source("../2.Fire_Seasson/Funciones_FS.r")
 
 
@@ -49,7 +50,7 @@ df_para_raster <- function(grid, grid_fba){
     main_fire_season_end <- c()
     secondary_fire_season_start <- c()
     secondary_fire_season_end <- c()
-    hayFireSeasson = c()
+    FireSeassonOrNot = c()
     fireSeassonLength <- c()
     for (i in 1:nrow(df.fireSeasson)){
         if (is.na(df.fireSeasson[i, ]$'FireSeasson')){
@@ -57,7 +58,7 @@ df_para_raster <- function(grid, grid_fba){
             secondary_fire_season_start <- c(secondary_fire_season_start, NA)
             main_fire_season_end <- c(main_fire_season_end, NA)
             secondary_fire_season_end <- c(secondary_fire_season_end, NA)
-            hayFireSeasson = c(hayFireSeasson, 0 )
+            FireSeassonOrNot = c(FireSeassonOrNot, 0 )
             fireSeassonLength <- c(fireSeassonLength, NA)
         }else{
             main_sec_FS <- func.main_fireSeasson(unlist(df.fireSeasson[i, ]$'FireSeasson'))
@@ -65,17 +66,22 @@ df_para_raster <- function(grid, grid_fba){
             secondary_fire_season_start <- c(secondary_fire_season_start, main_sec_FS$secondary[1])
             main_fire_season_end <- c(main_fire_season_end, main_sec_FS$main[length(main_sec_FS$main)])
             secondary_fire_season_end <- c(secondary_fire_season_end, main_sec_FS$secondary[length(main_sec_FS$secondary)])
-            hayFireSeasson = c(hayFireSeasson, 1 )
+            FireSeassonOrNot = c(FireSeassonOrNot, 1 )
             fireSeassonLength <- c(fireSeassonLength, length(unlist(df.fireSeasson[i, ]$'FireSeasson')))
         }
     }
 
-    df <- data.frame(hayFireSeasson, 'coord_x' = df.fireSeasson$'coord_x', 'coord_y' = df.fireSeasson$'coord_y', main_fire_season_start,main_fire_season_end, secondary_fire_season_start, secondary_fire_season_end, fireSeassonLength, 'SeassonalConcentration'=df.fireSeasson$'SeassonalConcentration', 'SeassonalTiming'=df.fireSeasson$'SeassonalTiming','FBA'=vector_fba)
+    df <- data.frame('coord_x' = df.fireSeasson$'coord_x', 'coord_y' = df.fireSeasson$'coord_y', FireSeassonOrNot, main_fire_season_start,main_fire_season_end, secondary_fire_season_start, secondary_fire_season_end, fireSeassonLength, 'SeassonalConcentration'=df.fireSeasson$'SeassonalConcentration', 'SeassonalTiming'=df.fireSeasson$'SeassonalTiming','FBA'=vector_fba)
+
+    
+    dfr  <- rasterFromXYZ(df)
+    
     nombre_variable <- deparse(substitute(grid))
-    ruta <- '../3.Preprocesado/dataframes raster/df_raster'
+    ruta <- '../3.Preprocesado/dataframes raster/df_raster/'
     ruta_archivo <- paste0(ruta,nombre_variable)
-    save(df, file = ruta_archivo)
-    cat('El data frame para el raster ',deparse(substitute(grid)),' ha sido generado y guardado con éxito!')
+    
+    save(dfr, file = ruta_archivo)
+    cat('El data frame raster ',deparse(substitute(grid)),' ha sido generado y guardado con éxito!')
 }
 
 
