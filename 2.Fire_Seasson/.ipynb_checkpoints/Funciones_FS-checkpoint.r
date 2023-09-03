@@ -258,11 +258,12 @@ isBimodal_filtro2 <- function(serie, umbral_entre_maximos = 0.3,umbral_entre_inc
             max1 = serie[maximos[1]]
             max2 = serie[length(serie)] #el segundo máximo se ubicaría al final de la serie, ya que no ha podido ser registrado
             #si max1 se ubica al principio de la serie, eso quiere decir que sólo hay una fire seasson que empieza en diciembre y acaba en enero, por eso:
+            incrementos <- c()
             if (which(serie == max1) != 1){
                 semejanza_maximos <- (max2 - max1)/max2
                 ##entonces ya hacemos lo mismo que hacíamos en el otro caso:
                 if (abs(semejanza_maximos)< umbral_entre_maximos){
-                    incrementos <- c()
+                    
                     for (i in 1:length(cambio_signo)-1){
                         incremento <- (serie[cambio_signo[i+1]] - serie[cambio_signo[i]])/sum(serie) 
                         incrementos <- c(incrementos, incremento)
