@@ -27,9 +27,7 @@ func.coordenadasConDatos <- function(grid){
     return(list('x' = coordX, 'y' = coordY))
 }
 
-func.mediasMensuales <- function(grid, lat, lon, func = mean){
-        x = lat 
-        y = lon
+func.mediasMensuales <- function(grid, x, y, func = mean){
         results <- c()
         for (season in 1:12){
             new_grid <- subsetGrid(grid = grid,season = season, lonLim  = x, latLim  = y)
@@ -38,16 +36,24 @@ func.mediasMensuales <- function(grid, lat, lon, func = mean){
             results <- c(results, func(get(var_name)$Data))
         }
         return(results)
-
 }
 
+
+
 func.ToDataFrame <- function(grid, coordX, coordY, func = mean){
+    progreso_total <- length(coordX)*length(coordY)
+    progreso <- 0
     lista <- list()
     for (x in coordX){
         for (y in coordY){
-            serie_temporal = func.mediasMensuales(grid = grid, lat = x, lon = y, func = func)
+            serie_temporal = func.mediasMensuales(grid = grid, x = x, y = y, func = func)
             nombre_item_lista <- paste(x, y, sep = '_')
             lista[[nombre_item_lista]] <- serie_temporal
+            
+            progreso <- progreso + 1
+            progreso_pct <- (progreso / progreso_total) * 100
+            cat(sprintf("\r%.2f%% de func.ToDataFrame completado", progreso_pct))
+            flush.console()
         }
     }
     meses <- seq(1,12)
@@ -416,3 +422,15 @@ quantity2clim <- function(quantity, what, ref.grid, backperm = NULL) {
   attr(ref.grid$Data, "climatology:fun") <- what
   return(ref.grid)
 }
+
+
+
+##intento de eficientar el codigo
+#func.mediasMensuales <- function(grid, func = mean){
+#    lon = grid$xyCoords$x
+ #   lat = grid$xyCoords$y
+ #   df_params <- expand.grid( "X" = lon, "Y" = lat, "Mes" = c(1:12))
+  #  resultado <- apply(df_params, 1, function(row) {subsetGrid(grid, season = row["Mes"], lonLim = row["X"], latLim  = row["Y"])})
+    
+  #  return(resultado)   
+#}
