@@ -1,5 +1,12 @@
-
-
+if (!require('devtools', character.only = TRUE)) {
+  # Si no está instalada, instalarla
+  install.packages('devtools')
+  # Cargar la librería
+  library('devtools', character.only = TRUE)
+} else {
+  # Si ya está instalada, cargar la librería
+  library('devtools', character.only = TRUE)
+}
 
 if (!require('raster', character.only = TRUE)) {
   # Si no está instalada, instalarla
@@ -475,9 +482,9 @@ df_para_raster <- function(grid, grid_fba, df_coords, num_cuaderno){
     df.fireSeasson <- cbind(df.fireSeasson,vector_p)
     names(df.fireSeasson)[ncol(df.fireSeasson)] <- 'SeassonalTiming'
     message('Caracterización de las fire seassons generadas')
-    df_fba <- func.ToDataFrame(grid = grid_fba, df_coords = df_coords, func = mean)
-    vector_fba <- df_fba[,1]
-    message('Data frame de fba cargado correctamente')
+    #df_fba <- func.ToDataFrame(grid = grid_fba, df_coords = df_coords, func = mean)
+    #vector_fba <- df_fba[,1]
+    #message('Data frame de fba cargado correctamente')
     
     main_fire_season_start <- c()
     main_fire_season_end <- c()
@@ -504,7 +511,7 @@ df_para_raster <- function(grid, grid_fba, df_coords, num_cuaderno){
         }
     }
     
-    df <- data.frame('coord_x' = df.fireSeasson$'coord_x', 'coord_y' = df.fireSeasson$'coord_y', FireSeassonOrNot, main_fire_season_start,main_fire_season_end, secondary_fire_season_start, secondary_fire_season_end, fireSeassonLength, 'SeassonalConcentration'=df.fireSeasson$'SeassonalConcentration', 'SeassonalTiming'=df.fireSeasson$'SeassonalTiming','FBA'=vector_fba)
+    df <- data.frame('coord_x' = df.fireSeasson$'coord_x', 'coord_y' = df.fireSeasson$'coord_y', FireSeassonOrNot, main_fire_season_start,main_fire_season_end, secondary_fire_season_start, secondary_fire_season_end, fireSeassonLength, 'SeassonalConcentration'=df.fireSeasson$'SeassonalConcentration', 'SeassonalTiming'=df.fireSeasson$'SeassonalTiming')#,'FBA'=vector_fba)
     
     message('Data frame final construido correctamente')
     

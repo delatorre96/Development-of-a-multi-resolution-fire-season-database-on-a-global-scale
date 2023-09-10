@@ -1,5 +1,12 @@
-
-
+if (!require('devtools', character.only = TRUE)) {
+  # Si no está instalada, instalarla
+  install.packages('devtools')
+  # Cargar la librería
+  library('devtools', character.only = TRUE)
+} else {
+  # Si ya está instalada, cargar la librería
+  library('devtools', character.only = TRUE)
+}
 
 if (!require('raster', character.only = TRUE)) {
   # Si no está instalada, instalarla
