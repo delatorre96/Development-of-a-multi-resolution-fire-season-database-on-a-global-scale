@@ -1,22 +1,15 @@
-if (!require('devtools', character.only = TRUE)) {
-  # Si no está instalada, instalarla
-  install.packages('devtools')
-  # Cargar la librería
-  library('devtools', character.only = TRUE)
-} else {
-  # Si ya está instalada, cargar la librería
-  library('devtools', character.only = TRUE)
+if (!require('transformeR', character.only = TRUE)){
+    if (!require('devtools', character.only = TRUE)) {
+      # Si no está instalada, instalarla
+      install.packages('devtools')
+      # Cargar la librería
+      library('devtools', character.only = TRUE)
+    } else {
+      # Si ya está instalada, cargar la librería
+      library('devtools', character.only = TRUE)
+    }
 }
 
-if (!require('raster', character.only = TRUE)) {
-  # Si no está instalada, instalarla
-  install.packages('raster')
-  # Cargar la librería
-  library('raster', character.only = TRUE)
-} else {
-  # Si ya está instalada, cargar la librería
-  library('raster', character.only = TRUE)
-}
 if (!require('transformeR', character.only = TRUE)) {
   # Si no está instalada, instalarla
   install_github('SantanderMetGroup/transformeR')
@@ -482,9 +475,9 @@ df_para_raster <- function(grid, grid_fba, df_coords, num_cuaderno){
     df.fireSeasson <- cbind(df.fireSeasson,vector_p)
     names(df.fireSeasson)[ncol(df.fireSeasson)] <- 'SeassonalTiming'
     message('Caracterización de las fire seassons generadas')
-    df_fba <- func.ToDataFrame(grid = grid_fba, df_coords = df_coords, func = mean)
-    vector_fba <- df_fba[,1]
-    message('Data frame de fba cargado correctamente')
+    #df_fba <- func.ToDataFrame(grid = grid_fba, df_coords = df_coords, func = mean)
+    #vector_fba <- df_fba[,1]
+    #message('Data frame de fba cargado correctamente')
     
     main_fire_season_start <- c()
     main_fire_season_end <- c()
@@ -511,16 +504,16 @@ df_para_raster <- function(grid, grid_fba, df_coords, num_cuaderno){
         }
     }
     
-    df <- data.frame('coord_x' = df.fireSeasson$'coord_x', 'coord_y' = df.fireSeasson$'coord_y', FireSeassonOrNot, main_fire_season_start,main_fire_season_end, secondary_fire_season_start, secondary_fire_season_end, fireSeassonLength, 'SeassonalConcentration'=df.fireSeasson$'SeassonalConcentration', 'SeassonalTiming'=df.fireSeasson$'SeassonalTiming','FBA'=vector_fba)
+    df <- data.frame('coord_x' = df.fireSeasson$'coord_x', 'coord_y' = df.fireSeasson$'coord_y', FireSeassonOrNot, main_fire_season_start,main_fire_season_end, secondary_fire_season_start, secondary_fire_season_end, fireSeassonLength, 'SeassonalConcentration'=df.fireSeasson$'SeassonalConcentration', 'SeassonalTiming'=df.fireSeasson$'SeassonalTiming')#,'FBA'=vector_fba)
     
     message('Data frame final construido correctamente')
     
-    dfr  <- rasterFromXYZ(df)
+    #dfr  <- rasterFromXYZ(df)
     
     nombre_variable <- deparse(substitute(grid))
     
-    ruta_archivo_raster <- paste0('df_raster_',nombre_variable,'_',num_cuaderno,'.tif')
-    writeRaster(dfr, filename = ruta_archivo_raster, format = "GTiff")
+    #ruta_archivo_raster <- paste0('df_raster_',nombre_variable,'_',num_cuaderno,'.tif')
+    #writeRaster(dfr, filename = ruta_archivo_raster, format = "GTiff")
     
     ruta_archivo <- paste0('df_',nombre_variable,'_',num_cuaderno,'.Rdata')
     save(df, file = ruta_archivo)
@@ -538,6 +531,11 @@ func.particion <- function(num_cuaderno, grid_05, grid_fba){
     fragmentos_df <- split(df_coords_totales, rep(1:20, each = 12960))
     df_coords <- data.frame(fragmentos_df[num_cuaderno])
     colnames(df_coords) <- c('x', 'y')
+    start <- Sys.time()
     df_para_raster(grid = grid_05, grid_fba = grid_fba, df_coords = df_coords, num_cuaderno = num_cuaderno)
+    end <- Sys.time()
+    diff.time <- end - start
+    fileConn<-file(paste0("tiempo_ejecucion_P",num_cuaderno,".txt"))
+    writeLines(c(paste0(diff.time)), fileConn)
+    close(fileConn)
 }
-

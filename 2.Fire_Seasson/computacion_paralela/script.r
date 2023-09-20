@@ -1,22 +1,15 @@
-if (!require('devtools', character.only = TRUE)) {
-  # Si no está instalada, instalarla
-  install.packages('devtools')
-  # Cargar la librería
-  library('devtools', character.only = TRUE)
-} else {
-  # Si ya está instalada, cargar la librería
-  library('devtools', character.only = TRUE)
+if (!require('transformeR', character.only = TRUE)){
+    if (!require('devtools', character.only = TRUE)) {
+      # Si no está instalada, instalarla
+      install.packages('devtools')
+      # Cargar la librería
+      library('devtools', character.only = TRUE)
+    } else {
+      # Si ya está instalada, cargar la librería
+      library('devtools', character.only = TRUE)
+    }
 }
 
-if (!require('raster', character.only = TRUE)) {
-  # Si no está instalada, instalarla
-  install.packages('raster')
-  # Cargar la librería
-  library('raster', character.only = TRUE)
-} else {
-  # Si ya está instalada, cargar la librería
-  library('raster', character.only = TRUE)
-}
 if (!require('transformeR', character.only = TRUE)) {
   # Si no está instalada, instalarla
   install_github('SantanderMetGroup/transformeR')
@@ -515,12 +508,12 @@ df_para_raster <- function(grid, grid_fba, df_coords, num_cuaderno){
     
     message('Data frame final construido correctamente')
     
-    dfr  <- rasterFromXYZ(df)
+    #dfr  <- rasterFromXYZ(df)
     
     nombre_variable <- deparse(substitute(grid))
     
-    ruta_archivo_raster <- paste0('df_raster_',nombre_variable,'_',num_cuaderno,'.tif')
-    writeRaster(dfr, filename = ruta_archivo_raster, format = "GTiff")
+    #ruta_archivo_raster <- paste0('df_raster_',nombre_variable,'_',num_cuaderno,'.tif')
+    #writeRaster(dfr, filename = ruta_archivo_raster, format = "GTiff")
     
     ruta_archivo <- paste0('df_',nombre_variable,'_',num_cuaderno,'.Rdata')
     save(df, file = ruta_archivo)
@@ -538,6 +531,11 @@ func.particion <- function(num_cuaderno, grid_05, grid_fba){
     fragmentos_df <- split(df_coords_totales, rep(1:20, each = 12960))
     df_coords <- data.frame(fragmentos_df[num_cuaderno])
     colnames(df_coords) <- c('x', 'y')
+    start <- Sys.time()
     df_para_raster(grid = grid_05, grid_fba = grid_fba, df_coords = df_coords, num_cuaderno = num_cuaderno)
+    end <- Sys.time()
+    diff.time <- end - start
+    fileConn<-file(paste0("tiempo_ejecucion_P",num_cuaderno,".txt"))
+    writeLines(c(paste0(diff.time)), fileConn)
+    close(fileConn)
 }
-

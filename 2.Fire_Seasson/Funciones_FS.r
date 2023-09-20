@@ -121,6 +121,37 @@ func.fireSeasson <- function(sereTemporalMedias, umbral = 0.8){
     }
 }
 
+func.fireSeasson_conUmbral <- function(sereTemporalMedias, umbral = 0.8){
+    if (any(0 != sereTemporalMedias)){
+        proporcionAreaQuemada <- ifelse(sereTemporalMedias != 0, sereTemporalMedias/sum(sereTemporalMedias), 0)
+        vector_acumulado <- cumsum(proporcionAreaQuemada)
+        vector_acumulado_ordenado <- sort(vector_acumulado)
+        vector_acumulado_ordenado_sinCeros <- vector_acumulado_ordenado[vector_acumulado_ordenado > 0 & vector_acumulado_ordenado <= umbral] 
+        meses_vector <- unique(match(vector_acumulado_ordenado_sinCeros, vector_acumulado))
+        if (length(meses_vector) != 0){# Si este vector es diferente de 0 es porque en un sólo mes se ha llegado a más del 80% de área quemada, por eso probamos distintas casuísticas, si llega al 90%, al 99% y al 100%
+            return (list('meses_vector' = meses_vector, 'umbral' = 0.8))
+            }else{ 
+                vector_acumulado_ordenado_sinCeros <- vector_acumulado_ordenado[vector_acumulado_ordenado > 0 & vector_acumulado_ordenado <= 0.9]
+                meses_vector <- unique(match(vector_acumulado_ordenado_sinCeros, vector_acumulado))
+                    if (length(meses_vector) != 0){
+                        return (list('meses_vector' = meses_vector, 'umbral' = 0.95))
+                        }else{ 
+                            vector_acumulado_ordenado_sinCeros <- vector_acumulado_ordenado[vector_acumulado_ordenado > 0 & vector_acumulado_ordenado <= 0.99]
+                            meses_vector <- unique(match(vector_acumulado_ordenado_sinCeros, vector_acumulado))
+                            if (length(meses_vector) != 0){
+                                return (list('meses_vector' = meses_vector, 'umbral' = 0.99))
+                            }else{ 
+                                vector_acumulado_ordenado_sinCeros <- vector_acumulado_ordenado[vector_acumulado_ordenado > 0 & vector_acumulado_ordenado <= 1]
+                                meses_vector <- unique(match(vector_acumulado_ordenado_sinCeros, vector_acumulado))
+                                return (list('meses_vector' = meses_vector, 'umbral' = 1))
+                            }
+                    }
+            }
+    }else{
+        return (NA)
+    }
+}
+
 
 reconfigurarFireSeasson <- function(serie){ #Para bimodales de segundo filtro
     #Esto lo hacemos para dividir la fire seasson en dos
@@ -434,3 +465,11 @@ quantity2clim <- function(quantity, what, ref.grid, backperm = NULL) {
     
   #  return(resultado)   
 #}
+
+func_barraProgreso <- function(porcentaje){
+    cadena <- "*"
+    numero <- porcentaje
+    resultado <- paste(rep(cadena, numero), collapse = "")
+    print(resultado)
+
+}
