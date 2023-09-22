@@ -367,7 +367,7 @@ sigma_m <- function(numberSeassons){
 
 func.caracterizacion_fireSeason <- function(sereTemporalMedias,numberSeassons = 12){
     if (any(0 != sereTemporalMedias)){
-            sigmas = sigma_m(numberSeassons = numberSeassons)
+        sigmas = sigma_m(numberSeassons = numberSeassons)
         #mediasMensuales es una lista de vectores en donde cada vector son 12 medias mensuales
         x <- sereTemporalMedias
         L_x_vector <- c()
@@ -384,12 +384,45 @@ func.caracterizacion_fireSeason <- function(sereTemporalMedias,numberSeassons = 
         P = atan(L_x / L_y)  
         ####Modulo de la seassonal timing
         #P = (P + 2*pi) %% (2*pi) 
-        return(list('C' = C, 'P' = P))
+        return(list('C' = C, 'P' = P)) 
         
     }else{
         return (NA)
     }
 }
+
+func.phase2meses <- function(sereTemporalMedias,numberSeassons = 12){
+    if (any(0 != sereTemporalMedias)){
+        sigmas = sigma_m(numberSeassons = numberSeassons)
+        #mediasMensuales es una lista de vectores en donde cada vector son 12 medias mensuales
+        x <- sereTemporalMedias
+        L_x_vector <- c()
+        L_y_vector <- c()
+        for (m in 1:12){
+            L_x_vector <- c(L_x_vector, x[m] * cos(sigmas[m]))
+            L_y_vector <- c(L_y_vector, x[m] * sin(sigmas[m]))
+        }
+        L_x = sum(L_x_vector)
+        L_y = sum(L_y_vector)
+        P = atan(L_x / L_y)  
+        
+        if (L_x > 0 & L_y > 0){
+            m = 0.5*pi - P
+        }else if (L_x < 0 & L_y > 0){
+            m = 0.5*pi + P
+        }else if (L_x < 0 & L_y < 0){
+            m = 1.5*pi - P
+        }else if (L_x > 0 & L_y < 0){
+            m = 1.5*pi + P
+        }
+        return(m) 
+        
+    }else{
+        return (NA)
+    }
+}
+
+
 
 #### Para incluir coordenadas en el data frame #####
 getCoordsFromDataFrame <- function(df){
