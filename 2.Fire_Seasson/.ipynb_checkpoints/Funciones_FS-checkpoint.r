@@ -1,5 +1,5 @@
 library("transformeR")
-
+library('parallel')
 ###Crear directorio si no exsite####
 func.createDirIFNotExists <- function(ruta, nombre_directorio){
     if (!dir.exists(file.path(ruta, nombre_directorio))) {
@@ -38,30 +38,60 @@ func.mediasMensuales <- function(grid, x, y, func = mean){
         return(results)
 }
 
+parallel_apply <- function(i) {
+  inicio <- filas_df_params_mes_inicios[i]
+  final <- filas_df_params_mes_finales[i]
+  parametros_mes <- df_params[inicio:final, ]
+  resultado_mes <- apply(parametros_mes, 1, func.applyDataFrame)
+  return(resultado_mes)
+}
 
-
-func.ToDataFrame <- function(grid, coordX, coordY, func = mean){
-    progreso_total <- length(coordX)*length(coordY)
-    progreso <- 0
-    lista <- list()
-    for (x in coordX){
-        for (y in coordY){
-            serie_temporal = func.mediasMensuales(grid = grid, x = x, y = y, func = func)
-            nombre_item_lista <- paste(x, y, sep = '_')
-            lista[[nombre_item_lista]] <- serie_temporal
-            
-            progreso <- progreso + 1
-            progreso_pct <- (progreso / progreso_total) * 100
-            cat(sprintf("\r%.2f%% de func.ToDataFrame completado", progreso_pct))
-            flush.console()
-        }
-    }
-    meses <- seq(1,12)
+func.applyDataFrame <- function (row, func = mean){
+    subgrid <- subsetGrid(grid, season = row["Mes"], lonLim = row["coord_x"], latLim  = row["coord_y"])
+    serie <- func(subgrid$Data)
+    return (serie)
+}
+func.iniciosFinales_mes<- function (grid){
+    lon = grid$xyCoords$x
+    lat = grid$xyCoords$y
+    df_params <- expand.grid( "coord_x" = lon, "coord_y" = lat, "Mes" = c(1:12))
+    filas_df_params_mes <- (seq(0, nrow(df_params), length(lon) * length(lat)))
     
-    df <- t(data.frame(lista))
-    rownames(df) <- names(lista)
-    colnames(df) <- meses
-    return (data.frame(df))
+    filas_df_params_mes_finales = c()
+    for (i in filas_df_params_mes[2:length(filas_df_params_mes)]){
+        filas_df_params_mes_finales = c(filas_df_params_mes_finales, i)
+    }
+    filas_df_params_mes_inicios = c(1)
+    for (i in seq(1,12)){
+            lista_finales = filas_df_params_mes_finales[2:length(filas_df_params_mes_finales)-1]
+            filas_df_params_mes_inicios = c(filas_df_params_mes_inicios, lista_finales[i]+1)    
+    }
+    filas_df_params_mes_inicios = na.omit(filas_df_params_mes_inicios)
+    return (list(filas_df_params_mes_inicios,filas_df_params_mes_finales,df_params))
+}
+iniciosFinalesMes <- func.iniciosFinales_mes(grid)
+filas_df_params_mes_inicios <- iniciosFinalesMes[[1]]
+filas_df_params_mes_finales <- iniciosFinalesMes[[2]]
+df_params <- iniciosFinalesMes[[3]]
+
+func.toDataFrame <- function(grid, func = mean){
+    lon = grid$xyCoords$x
+    lat = grid$xyCoords$y
+    df_params <- expand.grid( "coord_x" = lon, "coord_y" = lat, "Mes" = c(1:12))
+    df.seriesTemporales <-  expand.grid( "coord_x" = lon, "coord_y" = lat)
+
+    num_cores <- detectCores()
+    cl <- makeCluster(num_cores)
+    clusterExport(cl, c("filas_df_params_mes_inicios", "filas_df_params_mes_finales", "df_params", "func.applyDataFrame","subsetGrid","grid"))
+    resultados <- parLapply(cl, 1:12, parallel_apply)
+
+    stopCluster(cl)
+    df.seriesTemporales <- cbind(df.seriesTemporales, resultados)
+    colnames(df.seriesTemporales) <- c('coord_x','coord_y', '1','2','3','4','5','6','7','8','9','10','11','12')
+    df.seriesTemporales <- df.seriesTemporales[order(df.seriesTemporales$'coord_x'),]
+    
+    return(df.seriesTemporales)
+    
 }
 
 func.eliminarSeriesConCeros <- function(df, conCoords = 0){
@@ -89,8 +119,27 @@ func.eliminarSeriesConCeros <- function(df, conCoords = 0){
 
 }
 
+func.toDataFrame_FBA <- function(grid_fba_sinTiempo){
+    
+    lon = grid_fba_sinTiempo$xyCoords$x
+    lat = grid_fba_sinTiempo$xyCoords$y
+    df_params_fba <- expand.grid( "coord_x" = lon, "coord_y" = lat)
+    resultados <- resultados <- apply(df_params_fba, 1, func.applyDataFrame_FBA)
+    df.FBA <- cbind(df_params_fba, resultados)
+    colnames(df.FBA) <- c('coord_x','coord_y', 'FBA')
+    df.FBA <- df.FBA[order(df.FBA$'coord_x'),]
+    return(df.FBA)
+    
+}
+func.applyDataFrame_FBA <- function (row){
+    ##grid_fba_sinTiempo ha de ser una variable global para que funcione
+    subgrid <- subsetGrid(grid_fba_sinTiempo, lonLim = row["coord_x"], latLim  = row["coord_y"])
+    serie <- subgrid$Data
+    return (serie)
+}
+
 #####FIRE SEASON########
-func.fireSeasson <- function(sereTemporalMedias, umbral = 0.8){
+func.fireSeason <- function(sereTemporalMedias, umbral = 0.8){
     if (any(0 != sereTemporalMedias)){
         proporcionAreaQuemada <- ifelse(sereTemporalMedias != 0, sereTemporalMedias/sum(sereTemporalMedias), 0)
         vector_acumulado <- cumsum(proporcionAreaQuemada)
@@ -121,7 +170,7 @@ func.fireSeasson <- function(sereTemporalMedias, umbral = 0.8){
     }
 }
 
-func.fireSeasson_conUmbral <- function(sereTemporalMedias, umbral = 0.8){
+func.fireSeason_conUmbral <- function(sereTemporalMedias, umbral = 0.8){
     if (any(0 != sereTemporalMedias)){
         proporcionAreaQuemada <- ifelse(sereTemporalMedias != 0, sereTemporalMedias/sum(sereTemporalMedias), 0)
         vector_acumulado <- cumsum(proporcionAreaQuemada)
@@ -153,9 +202,9 @@ func.fireSeasson_conUmbral <- function(sereTemporalMedias, umbral = 0.8){
 }
 
 
-reconfigurarFireSeasson <- function(serie){ #Para bimodales de segundo filtro
-    #Esto lo hacemos para dividir la fire seasson en dos
-    #Como previamente ya sabemos que estas series tienen fire seasson y cumplen con el criterio del 80% ahora lo reordenamos para que se divida en dos
+reconfigurarFireSeason <- function(serie){ #Para bimodales de segundo filtro
+    #Esto lo hacemos para dividir la fire season en dos
+    #Como previamente ya sabemos que estas series tienen fire season y cumplen con el criterio del 80% ahora lo reordenamos para que se divida en dos
     maximo1 = which(serie == sort(serie, decreasing = TRUE)[1])
     maximo2 = which(serie == sort(serie, decreasing = TRUE)[2])
     maximos = unname(sort(c(maximo1, maximo2)))
@@ -232,13 +281,13 @@ reconfigurarFireSeasson <- function(serie){ #Para bimodales de segundo filtro
 }
 
 ###Fire season Bimodal####
-isBimodal_filtro1 <- function(fireSeasson_serie){
-    if (is.na(fireSeasson_serie)){
+isBimodal_filtro1 <- function(fireSeason_serie){
+    if (is.na(fireSeason_serie)){
         return(FALSE)
     }else{
-        fireSeasson_serie <- fireSeasson_serie[[1]]
-        vector_2 <- seq(min(fireSeasson_serie), max(fireSeasson_serie))
-          if (identical(fireSeasson_serie, vector_2)) {
+        fireSeason_serie <- fireSeason_serie[[1]]
+        vector_2 <- seq(min(fireSeason_serie), max(fireSeason_serie))
+          if (identical(fireSeason_serie, vector_2)) {
             return(FALSE)
           } else {
             return(TRUE)
@@ -294,7 +343,7 @@ isBimodal_filtro2 <- function(serie, umbral_entre_maximos = 0.3,umbral_entre_inc
             #probablemente encontraremos que sólo hay un máximo en el vector de máximos pero lo checkeamos
             max1 = serie[maximos[1]]
             max2 = serie[length(serie)] #el segundo máximo se ubicaría al final de la serie, ya que no ha podido ser registrado
-            #si max1 se ubica al principio de la serie, eso quiere decir que sólo hay una fire seasson que empieza en diciembre y acaba en enero, por eso:
+            #si max1 se ubica al principio de la serie, eso quiere decir que sólo hay una fire season que empieza en diciembre y acaba en enero, por eso:
             incrementos <- c()
             if (which(serie == max1) != 1){
                 semejanza_maximos <- (max2 - max1)/max2
@@ -328,9 +377,9 @@ isBimodal_filtro2 <- function(serie, umbral_entre_maximos = 0.3,umbral_entre_inc
 }
 
 
-func.bimodalidad <- function(df.seriesTemporales_conCoords, df.fireSeasson){
+func.bimodalidad <- function(df.seriesTemporales_conCoords, df.fireSeason){
     #Pasamos el primer filtro
-    bimodales_1 <- apply(df.fireSeasson, 1, isBimodal_filtro1)
+    bimodales_1 <- apply(df.fireSeason, 1, isBimodal_filtro1)
     coord_x = df.seriesTemporales_conCoords$coord_x
     coord_y = df.seriesTemporales_conCoords$coord_y
     df_bimodales_1 = data.frame(coord_x, coord_y, bimodales_1)
@@ -341,33 +390,33 @@ func.bimodalidad <- function(df.seriesTemporales_conCoords, df.fireSeasson){
         }
     df_bimodales = cbind(df_bimodales_1,bimodales_2)
     df_bimodales$Bimodal <- df_bimodales$bimodales_1 | df_bimodales$bimodales_2
-    df.fireSeasson <- cbind(coord_x, coord_y, df.fireSeasson, 'Bimodal'=df_bimodales$Bimodal,  'bimodales_1'=df_bimodales$bimodales_1 , 'bimodales_2'= df_bimodales$bimodales_2)
-    #Reconfiguramos fire seassons nuevas
-    for (i in 1:nrow(df.fireSeasson)){
-        if (df.fireSeasson$bimodales_1[i] == FALSE & df.fireSeasson$bimodales_2[i] == TRUE){
-            x = df.fireSeasson$coord_x[i]
-            y = df.fireSeasson$coord_y[i]
+    df.fireSeason <- cbind(coord_x, coord_y, df.fireSeason, 'Bimodal'=df_bimodales$Bimodal,  'bimodales_1'=df_bimodales$bimodales_1 , 'bimodales_2'= df_bimodales$bimodales_2)
+    #Reconfiguramos fire seasons nuevas
+    for (i in 1:nrow(df.fireSeason)){
+        if (df.fireSeason$bimodales_1[i] == FALSE & df.fireSeason$bimodales_2[i] == TRUE){
+            x = df.fireSeason$coord_x[i]
+            y = df.fireSeason$coord_y[i]
             serie = unlist(df.seriesTemporales_conCoords[df.seriesTemporales_conCoords$coord_x == x &  df.seriesTemporales_conCoords$coord_y == y, ][,3:14])
-            df.fireSeasson$FireSeasson[i] = list(reconfigurarFireSeasson(serie))
+            df.fireSeason$FireSeason[i] = list(reconfigurarFireSeason(serie))
 
         }
     }
-    df.fireSeasson <- subset(df.fireSeasson, select = -c(bimodales_1, bimodales_2))
-    return (df.fireSeasson)
+    df.fireSeason <- subset(df.fireSeason, select = -c(bimodales_1, bimodales_2))
+    return (df.fireSeason)
     }
 
 #####caracterizacion fire season####
-sigma_m <- function(numberSeassons){
+sigma_m <- function(numberSeasons){
     sigmas = c()
-    for (m in 1:numberSeassons){
-        sigmas = c(sigmas, 2*pi * (m-1)/numberSeassons)
+    for (m in 1:numberSeasons){
+        sigmas = c(sigmas, 2*pi * (m-1)/numberSeasons)
     }
     return (sigmas)
 }
 
-func.caracterizacion_fireSeason <- function(sereTemporalMedias,numberSeassons = 12){
+func.caracterizacion_fireSeason <- function(sereTemporalMedias,numberSeasons = 12){
     if (any(0 != sereTemporalMedias)){
-        sigmas = sigma_m(numberSeassons = numberSeassons)
+        sigmas = sigma_m(numberSeasons = numberSeasons)
         #mediasMensuales es una lista de vectores en donde cada vector son 12 medias mensuales
         x <- sereTemporalMedias
         L_x_vector <- c()
@@ -382,7 +431,7 @@ func.caracterizacion_fireSeason <- function(sereTemporalMedias,numberSeassons = 
         C = (sqrt(L_x^2 + L_y^2))/sum(x)
         #seasonal timing 
         P = atan(L_x / L_y)  
-        ####Modulo de la seassonal timing
+        ####Modulo de la seasonal timing
         #P = (P + 2*pi) %% (2*pi) 
         return(list('C' = C, 'P' = P)) 
         
@@ -391,9 +440,9 @@ func.caracterizacion_fireSeason <- function(sereTemporalMedias,numberSeassons = 
     }
 }
 
-func.phase2meses <- function(sereTemporalMedias,numberSeassons = 12){
+func.phase2meses <- function(sereTemporalMedias,numberSeasons = 12){
     if (any(0 != sereTemporalMedias)){
-        sigmas = sigma_m(numberSeassons = numberSeassons)
+        sigmas = sigma_m(numberSeasons = numberSeasons)
         #mediasMensuales es una lista de vectores en donde cada vector son 12 medias mensuales
         x <- sereTemporalMedias
         L_x_vector <- c()
@@ -460,15 +509,15 @@ func.matriz_covarianzas = function(lista_de_variables,nombres_variables,func){
     return(matriz_cov)
 }
 
-func.main_fireSeasson <- function(vector.fireSeasson){
-        vector_2 <- seq(min(vector.fireSeasson), max(vector.fireSeasson))
-        if (identical(unname(vector.fireSeasson), vector_2)) {
-                return(list('main' = vector.fireSeasson, 'secondary' = NA))
+func.main_fireSeason <- function(vector.fireSeason){
+        vector_2 <- seq(min(vector.fireSeason), max(vector.fireSeason))
+        if (identical(unname(vector.fireSeason), vector_2)) {
+                return(list('main' = vector.fireSeason, 'secondary' = NA))
               } else {
-                for (i in 1:length(vector.fireSeasson)){
-                    if (vector.fireSeasson[i+1] - vector.fireSeasson[i] > 1){
-                        primaryFS <- seq(vector.fireSeasson[1], vector.fireSeasson[i])
-                        secondaryFS <- seq(vector.fireSeasson[i+1],vector.fireSeasson[length(vector.fireSeasson)])
+                for (i in 1:length(vector.fireSeason)){
+                    if (vector.fireSeason[i+1] - vector.fireSeason[i] > 1){
+                        primaryFS <- seq(vector.fireSeason[1], vector.fireSeason[i])
+                        secondaryFS <- seq(vector.fireSeason[i+1],vector.fireSeason[length(vector.fireSeason)])
                         break
                     }
                 }
@@ -489,15 +538,7 @@ quantity2clim <- function(quantity, what, ref.grid, backperm = NULL) {
 
 
 
-##intento de eficientar el codigo
-#func.mediasMensuales <- function(grid, func = mean){
-#    lon = grid$xyCoords$x
- #   lat = grid$xyCoords$y
- #   df_params <- expand.grid( "X" = lon, "Y" = lat, "Mes" = c(1:12))
-  #  resultado <- apply(df_params, 1, function(row) {subsetGrid(grid, season = row["Mes"], lonLim = row["X"], latLim  = row["Y"])})
-    
-  #  return(resultado)   
-#}
+
 
 func_barraProgreso <- function(porcentaje){
     cadena <- "*"

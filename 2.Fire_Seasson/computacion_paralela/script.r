@@ -19,7 +19,15 @@ if (!require('transformeR', character.only = TRUE)) {
   # Si ya está instalada, cargar la librería
   library('transformeR', character.only = TRUE)
 }
-
+if (!require('parallel', character.only = TRUE)) {
+  # Si no está instalada, instalarla
+  install.packages('parallel')
+  # Cargar la librería
+  library('parallel', character.only = TRUE)
+} else {
+  # Si ya está instalada, cargar la librería
+  library('parallel', character.only = TRUE)
+}
 
 ###Crear directorio si no exsite####
 func.createDirIFNotExists <- function(ruta, nombre_directorio){
@@ -47,6 +55,7 @@ func.coordenadasConDatos <- function(grid){
     }
     return(list('x' = coordX, 'y' = coordY))
 }
+
 func.mediasMensuales <- function(grid, x, y, func = mean){
         results <- c()
         for (season in 1:12){
@@ -58,28 +67,60 @@ func.mediasMensuales <- function(grid, x, y, func = mean){
         return(results)
 }
 
-func.ToDataFrame <- function(grid, df_coords , func = mean){
-    progreso_total <- nrow(df_coords)
-    progreso <- 0
-    lista <- list()
-    for (row in 1:nrow(df_coords)){
-        x = df_coords$x[row]
-        y = df_coords$y[row]
-        serie_temporal = func.mediasMensuales(grid = grid, x = x , y = y , func = func)
-        nombre_item_lista <- paste(x, y, sep = '_')
-        lista[[nombre_item_lista]] <- serie_temporal
+parallel_apply <- function(i) {
+  inicio <- filas_df_params_mes_inicios[i]
+  final <- filas_df_params_mes_finales[i]
+  parametros_mes <- df_params[inicio:final, ]
+  resultado_mes <- apply(parametros_mes, 1, func.applyDataFrame)
+  return(resultado_mes)
+}
 
-        progreso <- progreso + 1
-        progreso_pct <- (progreso / progreso_total) * 100
-        cat(sprintf("\r%.2f%% de func.ToDataFrame completado", progreso_pct))
-        flush.console()   
-    }
-    meses <- seq(1,12)
+func.applyDataFrame <- function (row, func = mean){
+    subgrid <- subsetGrid(grid, season = row["Mes"], lonLim = row["coord_x"], latLim  = row["coord_y"])
+    serie <- func(subgrid$Data)
+    return (serie)
+}
+func.iniciosFinales_mes<- function (grid){
+    lon = grid$xyCoords$x
+    lat = grid$xyCoords$y
+    df_params <- expand.grid( "coord_x" = lon, "coord_y" = lat, "Mes" = c(1:12))
+    filas_df_params_mes <- (seq(0, nrow(df_params), length(lon) * length(lat)))
     
-    df <- t(data.frame(lista))
-    rownames(df) <- names(lista)
-    colnames(df) <- meses
-    return (data.frame(df))
+    filas_df_params_mes_finales = c()
+    for (i in filas_df_params_mes[2:length(filas_df_params_mes)]){
+        filas_df_params_mes_finales = c(filas_df_params_mes_finales, i)
+    }
+    filas_df_params_mes_inicios = c(1)
+    for (i in seq(1,12)){
+            lista_finales = filas_df_params_mes_finales[2:length(filas_df_params_mes_finales)-1]
+            filas_df_params_mes_inicios = c(filas_df_params_mes_inicios, lista_finales[i]+1)    
+    }
+    filas_df_params_mes_inicios = na.omit(filas_df_params_mes_inicios)
+    return (list(filas_df_params_mes_inicios,filas_df_params_mes_finales,df_params))
+}
+iniciosFinalesMes <- func.iniciosFinales_mes(grid)
+filas_df_params_mes_inicios <- iniciosFinalesMes[[1]]
+filas_df_params_mes_finales <- iniciosFinalesMes[[2]]
+df_params <- iniciosFinalesMes[[3]]
+
+func.toDataFrame <- function(grid, func = mean){
+    lon = grid$xyCoords$x
+    lat = grid$xyCoords$y
+    df_params <- expand.grid( "coord_x" = lon, "coord_y" = lat, "Mes" = c(1:12))
+    df.seriesTemporales <-  expand.grid( "coord_x" = lon, "coord_y" = lat)
+
+    num_cores <- detectCores()
+    cl <- makeCluster(num_cores)
+    clusterExport(cl, c("filas_df_params_mes_inicios", "filas_df_params_mes_finales", "df_params", "func.applyDataFrame","subsetGrid","grid"))
+    resultados <- parLapply(cl, 1:12, parallel_apply)
+
+    stopCluster(cl)
+    df.seriesTemporales <- cbind(df.seriesTemporales, resultados)
+    colnames(df.seriesTemporales) <- c('coord_x','coord_y', '1','2','3','4','5','6','7','8','9','10','11','12')
+    df.seriesTemporales <- df.seriesTemporales[order(df.seriesTemporales$'coord_x'),]
+    
+    return(df.seriesTemporales)
+    
 }
 
 func.eliminarSeriesConCeros <- function(df, conCoords = 0){
@@ -106,6 +147,25 @@ func.eliminarSeriesConCeros <- function(df, conCoords = 0){
     }
 
 }
+
+func.toDataFrame_FBA <- function(grid_fba_sinTiempo){
+    lon = grid_fba_sinTiempo$xyCoords$x
+    lat = grid_fba_sinTiempo$xyCoords$y
+    df_params_fba <- expand.grid( "X" = lon, "Y" = lat)
+    resultados <- resultados <- apply(df_params_fba, 1, func.applyDataFrame_FBA)
+    df.FBA <- cbind(df_params_fba, resultados)
+    colnames(df.FBA) <- c('X','Y', 'FBA')
+    df.FBA <- df.FBA[order(df.FBA$'X'),]
+    return(df.FBA)
+    
+}
+func.applyDataFrame_FBA <- function (row){
+    ##grid_fba_sinTiempo ha de ser una variable global para que funcione
+    subgrid <- subsetGrid(grid_fba_sinTiempo, lonLim = row["X"], latLim  = row["Y"])
+    serie <- subgrid$Data
+    return (serie)
+}
+
 
 #####FIRE SEASON########
 func.fireSeasson <- function(sereTemporalMedias, umbral = 0.8){
@@ -435,15 +495,10 @@ df_para_raster <- function(grid, grid_fba, df_coords, num_cuaderno){
     message('Se carga ', deparse(substitute(grid)), ' y ', deparse(substitute(grid_fba)), ' en memoria')
     message('Calculando media de cada mes...')
     ##Hacemos la media de todos los eneros, de todos los febreros,... de todos los meses para cada gridBox:
-    df.seriesTemporales <- func.ToDataFrame(grid = grid, df_coords = df_coords, func = mean)
+    df.seriesTemporales_conCoords <- func.toDataFrame(grid = grid,func = mean)
     message('Media de todos meses generada')
     ## incluimos las coordenadas en el data frame de series temporales pero creando otro objeto. Esto lo hago para evitar problemas de programación cuando calcule la fire seasson
-    coordenadas = getCoordsFromDataFrame(df.seriesTemporales)
-    coord_x = coordenadas$x
-    coord_y = coordenadas$y
-    df.coords = data.frame(coord_x, coord_y)
-
-    df.seriesTemporales_conCoords <- as.data.frame(cbind(df.coords, df.seriesTemporales))
+    df.seriesTemporales <- df.seriesTemporales_conCoords[,3:14]
 
     #####Calculamos la Fire SEasson usando las series temporales (las medias de cada mes)
     df.fireSeasson <- data.frame(t(data.frame(t(apply(df.seriesTemporales, 1, func.fireSeasson)))))
@@ -475,7 +530,7 @@ df_para_raster <- function(grid, grid_fba, df_coords, num_cuaderno){
     df.fireSeasson <- cbind(df.fireSeasson,vector_p)
     names(df.fireSeasson)[ncol(df.fireSeasson)] <- 'SeassonalTiming'
     message('Caracterización de las fire seassons generadas')
-    #df_fba <- func.ToDataFrame(grid = grid_fba, df_coords = df_coords, func = mean)
+    df_fba <- func.ToDataFrame(grid = grid_fba, func = mean)
     #vector_fba <- df_fba[,1]
     #message('Data frame de fba cargado correctamente')
     
